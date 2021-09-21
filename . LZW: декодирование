@@ -1,0 +1,44 @@
+#include <iostream>
+#include <string>
+#include <map>
+
+using namespace std;
+
+
+int main() {
+    map<int, string> dic;
+    for (int i = 0; i <= 127; ++i) {
+        char symble = static_cast<char>(i);
+        string s{symble};
+        dic[i] = s;
+    }
+    int k;
+    cin >> k;
+    if (k == 1) {
+        int el;
+        cin >> el;
+        cout << dic[el] << endl;
+        return 0;
+    }
+    int cnt = 127, code, old_code;
+    cin >> code;
+    string current;
+    string symbol = dic[code];
+    old_code = code;
+    cout << symbol;
+    for (int i = 0; i < k - 1; ++i) {
+        cin >> code;
+        if (dic.contains(code)) {
+            current = dic[code];
+        } else {
+            current = dic[old_code];
+            current += symbol;
+        }
+        cout << current;
+        symbol = current.substr(0, 1);
+        ++cnt;
+        dic[cnt] = dic[old_code] + symbol;
+        old_code = code;
+    }
+    cout << endl;
+}
