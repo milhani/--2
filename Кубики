@@ -1,0 +1,91 @@
+#include <algorithm>
+#include <iostream>
+#include <string>
+#include <map>
+#include <vector>
+
+using namespace std;
+
+
+class Graph {
+public:
+    vector<vector<int>> graph;
+    vector<bool> visited;
+    vector<int> match;
+    int n, m;
+
+    explicit Graph(int N, int M) {
+        n = N, m = M;
+        graph.resize(n);
+        visited.resize(n, false);
+        match.resize(m, -1);
+    }
+
+    void fill_graph(int key, int value) {
+        graph[key].push_back(value);
+    }
+
+    bool Kuhn(int now) {
+        if (visited[now])
+            return false;
+        visited[now] = true;
+        for (int v : graph[now]) {
+            if (match[v] == -1 || Kuhn(match[v])) {
+                match[v] = now;
+                return true;
+            }
+        }
+        return false;
+    }
+};
+
+
+int main() {
+    int n, m;
+    cin >> m;
+    string name;
+    cin >> name;
+    n = name.size();
+
+    map<int, string> nm;
+    for (int i = 0; i < n; ++i) {
+        nm[i] = name.substr(i, 1);
+    }
+
+    map<int, string> strs;
+    for (int i = 0; i < m; ++i) {
+        string x;
+        cin >> x;
+        strs[i] = x;
+    }
+
+    Graph grph(n, m);
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < m; ++j) {
+            if (strs[j].find(nm[i]) != string::npos) {
+                grph.fill_graph(i, j);
+            }
+        }
+    }
+
+    for (int i = 0; i < n; ++i) {
+        grph.visited.assign(n, false);
+        grph.Kuhn(i);
+    }
+
+    if (m - count(grph.match.begin(), grph.match.end(), -1) != n)
+        cout << "NO\n";
+    else {
+        cout << "YES\n";
+        vector<int> ans(n);
+        for (int i = 0; i < m; ++i) {
+            if (grph.match[i] != -1) {
+                ans[grph.match[i]] = i + 1;
+            }
+        }
+        for (int x : ans)
+            cout << x << ' ';
+        cout << endl;
+    }
+}
+
