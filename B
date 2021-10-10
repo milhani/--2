@@ -11,13 +11,8 @@ public:
     UniquePtr(T *ptr, Deleter deleter) : data(ptr), del(deleter) {
     }
 
-    UniquePtr(UniquePtr&& ptr) noexcept {
-        if (this == &ptr)
-            return *this;
-        Reset();
-        data = ptr.data;
-        ptr.data = nullptr;
-        return *this;
+    template<typename U, typename E>
+    UniquePtr(UniquePtr<U, E>&& ptr) noexcept : data(std::forward<U, E>(ptr)), del(default_deleter<T[]>()) {
     }
 
     ~UniquePtr() {
