@@ -1,103 +1,76 @@
-#include <algorithm>
-#include <iostream>
-#include <variant>
-#include <vector>
-#include <execution>
+// Specialization for arrays
+template <typename T, typename Deleter>
+class UniquePtr<T[], Deleter> {
+    T* data;
+    Deleter del;
 
-using namespace std;
-
-struct ComputeRequest {
-    int left; int right;
-    ComputeRequest() = default;
-};
-
-struct UpdateRequest {
-    int index; int delta;
-    UpdateRequest() = default;
-};
-
-using Request = variant<ComputeRequest, UpdateRequest>;
-
-
-class Tree {
 public:
-    vector<int> tree;
-    Tree(int k) {
-        tree.resize(k * 4);
-    }
-    void build(const vector<int>& datum, int v, int l, int r) {
-        if (l == r)
-            tree[v] = datum[l];
-        else {
-            int temp = (l + r) / 2;
-            build (datum, v * 2, l, temp);
-            build (datum, v * 2 + 1, temp + 1, r);
-            tree[v] = tree[v * 2] + tree[v * 2 + 1];
-        }
+    explicit UniquePtr(T* ptr = nullptr) : data(ptr), del(default_deleter<T[]>()) {
     }
 
-    int compute(int v, int current_l, int current_r, int l, int r) {
-        if (l == current_l && r == current_r)
-            return tree[v];
-        if (l > r)
-            return 0;
-        int temp = (current_l + current_r) / 2;
-        return compute(v * 2, current_l, temp, l, min(temp, r)) +
-               compute(v * 2 + 1, temp + 1, current_r, max(l, temp + 1), r);
+    UniquePtr(T *ptr, Deleter deleter) : data(ptr), del(deleter) {
     }
 
-    void update(int v, int current_l, int current_r, int index, int value) {
-        if (current_l == current_r)
-            tree[v] += value;
-        else {
-            int temp = (current_l + current_r) / 2;
-            if (index <= temp)
-                update(v * 2, current_l, temp, index, value);
-            else
-                update (v * 2 + 1, temp + 1, current_r, index, value);
-            tree[v] = tree[v * 2] + tree[v * 2 + 1];
-        }
+    UniquePtr(UniquePtr&& ptr) noexcept {
+        if (this == &ptr)
+            return *this;
+        Reset();
+        data = ptr.data;
+        ptr.data = nullptr;
+        return *this;
+    }
+
+    ~UniquePtr() {
+        delete [] data;
+    }
+
+    Deleter& GetDeleter() {
+        return del;
+    }
+
+    const Deleter& GetDeleter() const {
+        return del;
+    }
+
+    UniquePtr& operator=(UniquePtr&& ptr)  {
+        Reset();
+        return *this;
+    }
+
+    T* Release() {
+        T* result = nullptr;
+        std::swap(result, data);
+        return result;
+    }
+
+    T* Get() const {
+        return data;
+    }
+
+    void Reset(T* ptr) {
+        T* old = data;
+        data = ptr;
+        if (old != nullptr)
+            delete old;
+    }
+
+    void Swap(UniquePtr& other) {
+        std::swap(data, other.data);
+    }
+
+    explicit operator bool() const {
+        return data != nullptr;
+    }
+
+    T& operator[](const int i) {
+        return data[i];
+    }
+
+    T& operator*() const {
+        return *data;
+    }
+
+    T* operator->() const {
+        return data;
     }
 };
-
-vector<int> ProcessRequests(const vector<int>& numbers, const vector<Request>& requests) {
-    int n = numbers.size();
-    vector<int> ans;
-    Tree tr(n);
-    tr.build(numbers, 1, 0, n - 1);
-    vector<Request> compute;
-    int cnt = 0;
-    auto as = ans.begin();
-    bool flag = false;
-    for (auto x = requests.begin(); x != requests.end(); ++x) {
-        if (const ComputeRequest* com = get_if<ComputeRequest>(&(*x))) {
-            if (!flag) {
-                flag = true;
-                cnt = 0;
-            }
-            ++cnt;
-            compute.push_back(*x);
-        } else {
-            if (flag) {
-                flag = false;
-                ans.reserve(ans.size() + cnt);
-                transform(execution::par, compute.begin(), compute.end(), as,
-                          [&](Request arg) {
-                              return tr.compute(1, 0, n - 1, get<ComputeRequest>(arg).left, get<ComputeRequest>(arg).right - 1);
-                          });
-                advance(as, cnt);
-                compute.clear();
-            }
-            UpdateRequest upd = get<UpdateRequest>(*x);
-            tr.update(1, 0, n - 1, upd.index, upd.delta);
-        }
-    }
-
-    ans.reserve(ans.size() + cnt);
-    transform(execution::par, compute.begin(), compute.end(), as,
-              [&](Request arg) {
-                  return tr.compute(1, 0, n - 1, get<ComputeRequest>(arg).left, get<ComputeRequest>(arg).right - 1);
-              });
-
-    return ans;
-}
