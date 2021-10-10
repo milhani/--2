@@ -1,3 +1,109 @@
+#pragma once
+
+#include "compressed_pair.h"
+
+#include <cstddef>  // std::nullptr_t
+#include <cstdlib>
+#include <utility>
+#include <algorithm>
+#include <memory>
+
+struct Slug {
+    void operator () (void *p) { free(p); }
+};
+
+// Primary template
+template <typename T, typename Deleter = Slug>
+class UniquePtr {
+    T*  data;
+    Deleter del;
+public:
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    // Constructors
+
+    explicit UniquePtr(T* ptr = nullptr) : data(ptr), del(Slug()) {
+    }
+
+    UniquePtr(T *ptr, Deleter deleter) : data(ptr), del(deleter) {
+    }
+
+    UniquePtr(UniquePtr&& other) noexcept : data(other.data) {
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    // `operator=`-s
+
+    UniquePtr& operator=(UniquePtr&& ptr) noexcept {
+        if (this == &ptr)
+            return *this;
+        Reset();
+        data = ptr.data;
+        ptr.data = nullptr;
+        return *this;
+    }
+
+    UniquePtr& operator=(std::nullptr_t) {
+        Reset();
+        return *this;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    // Destructor
+
+    ~UniquePtr() {
+        delete data;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    // Modifiers
+
+    T* Release() {
+        T* result = nullptr;
+        std::swap(result, data);
+        return result;
+    }
+
+    void Reset(T* ptr = nullptr) {
+        T* old = data;
+        data = ptr;
+        if (old != nullptr)
+            delete old;
+    }
+
+    void Swap(UniquePtr& other) {
+        std::swap(data, other.data);
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    // Observers
+
+    T* Get() const {
+        return data;
+    }
+
+    Deleter& GetDeleter() {
+        return del;
+    }
+
+    const Deleter& GetDeleter() const {
+        return del;
+    }
+
+    explicit operator bool() const {
+            return data;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    // Single-object dereference operators
+
+    T& operator*() const {
+        return *data;
+    }
+    T* operator->() const {
+        return data;
+    }
+};
+
 // Specialization for arrays
 template <typename T, typename Deleter>
 class UniquePtr<T[], Deleter> {
@@ -5,14 +111,14 @@ class UniquePtr<T[], Deleter> {
     Deleter del;
 
 public:
-    explicit UniquePtr(T* ptr = nullptr) : data(ptr), del(default_deleter<T[]>()) {
+    explicit UniquePtr(T* ptr = nullptr) : data(ptr), del(default_deleter<T>()) {
     }
 
     UniquePtr(T *ptr, Deleter deleter) : data(ptr), del(deleter) {
     }
 
-    template<typename U, typename E>
-    UniquePtr(UniquePtr<U, E>&& ptr) noexcept : data(std::forward<U, E>(ptr)), del(default_deleter<T[]>()) {
+    template<typename U>
+    UniquePtr(UniquePtr<U>&& ptr) noexcept : data(ptr.Release()) {
     }
 
     ~UniquePtr() {
