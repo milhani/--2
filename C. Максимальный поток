@@ -1,0 +1,75 @@
+#include <iostream>
+#include <climits>
+#include <vector>
+
+using namespace std;
+
+
+class Graph {
+public:
+    int n;
+    vector<vector<int>> capacity;
+    vector<int> parent;
+    vector<bool> visited;
+
+    explicit Graph(int N) {
+        n = N;
+        capacity.resize(n, vector<int>(n, 0));
+        parent.resize(n, -1);
+        visited.resize(n, false);
+    }
+
+    int FordFulkerson(){
+        int max_flow = 0;
+        while (dfs(0)) {
+            visited.assign(n, false);
+            int path_flow = INT_MAX;
+
+            for (int now = n - 1; now != 0; now = parent[now]){
+                int prev = parent[now];
+                path_flow = min(path_flow, capacity[prev][now]);
+            }
+
+            for(int now = n - 1; now != 0; now = parent[now]){
+                int prev = parent[now];
+                capacity[prev][now] -= path_flow;
+                capacity[now][prev] += path_flow;
+            }
+
+            max_flow += path_flow;
+        }
+
+        return max_flow;
+    }
+
+    bool dfs(int now){
+        if (now == n - 1)
+            return true;
+        
+        visited[now] = true;
+
+        for (int cur = 0; cur < n; ++cur){
+            if(!visited[cur] && capacity[now][cur] > 0){
+                parent[cur] = now;
+                if (dfs(cur))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+};
+
+int main() {
+    int n, m;
+    cin >> n >> m;
+    Graph grph(n);
+    for (int i = 0; i < m; ++i) {
+        int s, f, c;
+        cin >> s >> f >> c;
+        grph.capacity[s - 1][f - 1] = c;
+    }
+    cout << grph.FordFulkerson() << endl;
+}
+
